@@ -1,0 +1,53 @@
+{
+  "Version": 1,
+  "WorkspaceRootPath": "C:\\Users\\avazb\\Desktop\\BigData\\Practice1\\",
+  "Documents": [
+    {
+      "AbsoluteMoniker": "D:0:0:{4D249414-8C3D-40CF-BC46-3159B9F543CE}|Practice1\\Practice1.pyproj|C:\\Users\\avazb\\Desktop\\BigData\\Practice1\\Practice1\\Practice1.py||{8B382828-6202-11D1-8870-0000F87579D2}",
+      "RelativeMoniker": "D:0:0:{4D249414-8C3D-40CF-BC46-3159B9F543CE}|Practice1\\Practice1.pyproj|solutionrelative:Practice1\\Practice1.py||{8B382828-6202-11D1-8870-0000F87579D2}"
+    },
+    {
+      "AbsoluteMoniker": "D:0:0:{A2FE74E1-B743-11D0-AE1A-00A0C90FFFC3}|\u003CMiscFiles\u003E|C:\\Users\\avazb\\AppData\\Local\\Temp\\af897875-fd1d-4a09-9e83-fd9587df0cb3_\u041A\u043E\u0439\u0438\u0447_\u043F\u0440\u0430\u043A\u0442\u0438\u043A\u0430.zip.\u041A\u043E\u0439\u0438\u0447_\u043F\u0440\u0430\u043A\u0442\u0438\u043A\u0430.zip\\lab2_streamlit.py||{8B382828-6202-11D1-8870-0000F87579D2}"
+    }
+  ],
+  "DocumentGroupContainers": [
+    {
+      "Orientation": 0,
+      "VerticalTabListWidth": 256,
+      "DocumentGroups": [
+        {
+          "DockedWidth": 200,
+          "SelectedChildIndex": 1,
+          "Children": [
+            {
+              "$type": "Document",
+              "DocumentIndex": 1,
+              "Title": "lab2_streamlit.py",
+              "DocumentMoniker": "C:\\Users\\avazb\\AppData\\Local\\Temp\\af897875-fd1d-4a09-9e83-fd9587df0cb3_\u041A\u043E\u0439\u0438\u0447_\u043F\u0440\u0430\u043A\u0442\u0438\u043A\u0430.zip.\u041A\u043E\u0439\u0438\u0447_\u043F\u0440\u0430\u043A\u0442\u0438\u043A\u0430.zip\\lab2_streamlit.py",
+              "RelativeDocumentMoniker": "..\\..\\..\\AppData\\Local\\Temp\\af897875-fd1d-4a09-9e83-fd9587df0cb3_\u041A\u043E\u0439\u0438\u0447_\u043F\u0440\u0430\u043A\u0442\u0438\u043A\u0430.zip.\u041A\u043E\u0439\u0438\u0447_\u043F\u0440\u0430\u043A\u0442\u0438\u043A\u0430.zip\\lab2_streamlit.py",
+              "ToolTip": "C:\\Users\\avazb\\AppData\\Local\\Temp\\af897875-fd1d-4a09-9e83-fd9587df0cb3_\u041A\u043E\u0439\u0438\u0447_\u043F\u0440\u0430\u043A\u0442\u0438\u043A\u0430.zip.\u041A\u043E\u0439\u0438\u0447_\u043F\u0440\u0430\u043A\u0442\u0438\u043A\u0430.zip\\lab2_streamlit.py [\u0422\u043E\u043B\u044C\u043A\u043E \u0447\u0442\u0435\u043D\u0438\u0435]",
+              "RelativeToolTip": "..\\..\\..\\AppData\\Local\\Temp\\af897875-fd1d-4a09-9e83-fd9587df0cb3_\u041A\u043E\u0439\u0438\u0447_\u043F\u0440\u0430\u043A\u0442\u0438\u043A\u0430.zip.\u041A\u043E\u0439\u0438\u0447_\u043F\u0440\u0430\u043A\u0442\u0438\u043A\u0430.zip\\lab2_streamlit.py [\u0422\u043E\u043B\u044C\u043A\u043E \u0447\u0442\u0435\u043D\u0438\u0435]",
+              "ViewState": "AgIAAOYAAAAAAAAAAAAYwBYBAAAAAAAAAAAAAA==",
+              "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.002457|",
+              "WhenOpened": "2025-06-13T19:55:22.205Z",
+              "EditorCaption": " [\u0422\u043E\u043B\u044C\u043A\u043E \u0447\u0442\u0435\u043D\u0438\u0435]"
+            },
+            {
+              "$type": "Document",
+              "DocumentIndex": 0,
+              "Title": "Practice1.py",
+              "DocumentMoniker": "C:\\Users\\avazb\\Desktop\\BigData\\Practice1\\Practice1\\Practice1.py",
+              "RelativeDocumentMoniker": "Practice1\\Practice1.py",
+              "ToolTip": "C:\\Users\\avazb\\Desktop\\BigData\\Practice1\\Practice1\\Practice1.py",
+              "RelativeToolTip": "Practice1\\Practice1.py",
+              "ViewState": "AgIAAAAAAAAAAAAAAAAAABYAAAAlAAAAAAAAAA==",
+              "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.002457|",
+              "WhenOpened": "2025-06-13T19:55:14.909Z",
+              "EditorCaption": ""
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}
