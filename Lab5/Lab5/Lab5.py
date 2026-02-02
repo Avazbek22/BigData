@@ -1,201 +1,306 @@
-# -*- coding: cp1251 -*-
-import pandas as pd
-import numpy as np
-import matplotlib.pyplot as plt
-from sklearn.preprocessing import StandardScaler
-from sklearn.decomposition import KernelPCA
-from sklearn.manifold import TSNE
-import umap
-from sklearn.ensemble import RandomForestClassifier
-from sklearn.model_selection import train_test_split
-from sklearn.metrics import accuracy_score
-import joblib
-from sklearn.impute import SimpleImputer
-from sklearn.cluster import KMeans
-from sklearn.metrics import silhouette_score, adjusted_rand_score
+п»ї# -*- coding: utf-8 -*-
+"""
+Р›Р°Р±РѕСЂР°С‚РѕСЂРЅР°СЏ СЂР°Р±РѕС‚Р° 5
+РњРµС‚РѕРґС‹ СЃРЅРёР¶РµРЅРёСЏ СЂР°Р·РјРµСЂРЅРѕСЃС‚Рё Рё Р·Р°РґР°С‡Р° РєР»Р°СЃС‚РµСЂРёР·Р°С†РёРё
+"""
+
+import numpy as np  # С‡РёСЃР»РµРЅРЅС‹Рµ РѕРїРµСЂР°С†РёРё
+import pandas as pd  # С‚Р°Р±Р»РёС‡РЅС‹Рµ РґР°РЅРЅС‹Рµ
+import matplotlib  # Р±Р°Р·РѕРІС‹Р№ matplotlib
+matplotlib.use("TkAgg")  # РѕС‚РґРµР»СЊРЅС‹Рµ РѕРєРЅР° РіСЂР°С„РёРєРѕРІ
+import matplotlib.pyplot as plt  # РіСЂР°С„РёРєРё
+
+from pathlib import Path  # СѓРґРѕР±РЅС‹Рµ РїСѓС‚Рё
+from sklearn.preprocessing import StandardScaler, LabelEncoder  # РЅРѕСЂРјР°Р»РёР·Р°С†РёСЏ Рё РєРѕРґРёСЂРѕРІР°РЅРёРµ
+from sklearn.decomposition import KernelPCA  # Kernel PCA
+from sklearn.manifold import TSNE  # t-SNE
+import umap  # UMAP
+from sklearn.discriminant_analysis import LinearDiscriminantAnalysis  # LDA
+from sklearn.cluster import KMeans, AgglomerativeClustering  # РєР»Р°СЃС‚РµСЂРёР·Р°С†РёСЏ
+from sklearn.metrics import silhouette_score, adjusted_rand_score  # РјРµС‚СЂРёРєРё
+from scipy.cluster.hierarchy import dendrogram, linkage  # РґРµРЅРґСЂРѕРіСЂР°РјРјР°
+import joblib  # СЃРѕС…СЂР°РЅРµРЅРёРµ РјРѕРґРµР»РµР№
 
 
+# -----------------------------
+# Р’СЃРїРѕРјРѕРіР°С‚РµР»СЊРЅС‹Рµ С„СѓРЅРєС†РёРё
+# -----------------------------
 
-# 1. Загрузка данных
-data = pd.read_csv(r"C:\Users\avazb\Desktop\BigData\Lab5\Iris.csv")
-print("Первые 5 строк данных:")
-print(data.head())
+def basic_info(df: pd.DataFrame, name: str) -> None:
+    """Р‘Р°Р·РѕРІР°СЏ РёРЅС„РѕСЂРјР°С†РёСЏ Рѕ РґР°С‚Р°СЃРµС‚Рµ."""
+    rows, cols = df.shape
+    memory_usage = df.memory_usage(deep=True).sum()
+    print(f"\n{name}: РєРѕР»РёС‡РµСЃС‚РІРѕ СЃС‚СЂРѕРє = {rows}, РєРѕР»РёС‡РµСЃС‚РІРѕ СЃС‚РѕР»Р±С†РѕРІ = {cols}")
+    print(f"{name}: РїР°РјСЏС‚СЊ = {memory_usage} Р±Р°Р№С‚")
 
-# 2. EDA и предобработка
-print("\nИнформация о данных:")
-print(data.info())
 
-print("\nОписательная статистика:")
-print(data.describe())
+def numeric_stats(df: pd.DataFrame) -> pd.DataFrame:
+    """РЎС‚Р°С‚РёСЃС‚РёРєР° РґР»СЏ С‡РёСЃР»РѕРІС‹С… РїСЂРёР·РЅР°РєРѕРІ."""
+    numeric_cols = df.select_dtypes(include=["int64", "float64", "int32", "float32"]).columns
+    stats = df[numeric_cols].describe(percentiles=[0.25, 0.5, 0.75]).T
+    stats = stats[["min", "50%", "mean", "max", "25%", "75%"]]
+    stats.columns = ["min", "median", "mean", "max", "p25", "p75"]
+    return stats
 
-# Проверка на выбросы
-numeric_cols = ['SepalLengthCm', 'SepalWidthCm', 'PetalLengthCm', 'PetalWidthCm']
-plt.figure(figsize=(12, 6))
-data[numeric_cols].boxplot()
-plt.title("Ящики с усами до обработки выбросов")
-plt.show()
 
-# Обработка выбросов
-for col in numeric_cols:
-    q1 = data[col].quantile(0.25)
-    q3 = data[col].quantile(0.75)
-    iqr = q3 - q1
-    lower_bound = q1 - 1.5 * iqr
-    upper_bound = q3 + 1.5 * iqr
-    data[col] = np.where(data[col] < lower_bound, lower_bound, data[col])
-    data[col] = np.where(data[col] > upper_bound, upper_bound, data[col])
+def categorical_stats(df: pd.DataFrame) -> pd.DataFrame:
+    """РЎС‚Р°С‚РёСЃС‚РёРєР° РґР»СЏ РєР°С‚РµРіРѕСЂРёР°Р»СЊРЅС‹С… РїСЂРёР·РЅР°РєРѕРІ."""
+    cat_cols = df.select_dtypes(include=["object", "category", "string"]).columns
+    summary = pd.DataFrame(index=cat_cols, columns=["mode", "mode_count"])
+    for col in cat_cols:
+        if df[col].notna().any():
+            mode_val = df[col].mode()[0]
+            mode_count = df[col].value_counts().iloc[0]
+            summary.loc[col] = [mode_val, mode_count]
+    return summary
 
-plt.figure(figsize=(12, 6))
-data[numeric_cols].boxplot()
-plt.title("Ящики с усами после обработки выбросов")
-plt.show()
 
-# Нормализация данных
+def handle_outliers_iqr(df: pd.DataFrame, exclude: list[str] | None = None) -> pd.DataFrame:
+    """РћР±СЂР°Р±РѕС‚РєР° РІС‹Р±СЂРѕСЃРѕРІ РїРѕ IQR: РѕРіСЂР°РЅРёС‡РµРЅРёРµ Р·РЅР°С‡РµРЅРёР№ РІ [Q1-1.5*IQR, Q3+1.5*IQR]."""
+    df = df.copy()
+    exclude = exclude or []
+    numeric_cols = df.select_dtypes(include=["int64", "float64", "int32", "float32"]).columns
+    for col in numeric_cols:
+        if col in exclude:
+            continue
+        q1 = df[col].quantile(0.25)
+        q3 = df[col].quantile(0.75)
+        iqr = q3 - q1
+        low = q1 - 1.5 * iqr
+        high = q3 + 1.5 * iqr
+        df[col] = df[col].clip(lower=low, upper=high)
+    return df
+
+
+def simple_kmeans(X: np.ndarray, k: int, max_iter: int = 100) -> np.ndarray:
+    """РџСЂРѕСЃС‚Р°СЏ СЂРµР°Р»РёР·Р°С†РёСЏ k-means (РґР»СЏ СЃСЂР°РІРЅРµРЅРёСЏ СЃ Р±РёР±Р»РёРѕС‚РµС‡РЅС‹Рј)."""
+    rng = np.random.default_rng(42)
+    # РЎР»СѓС‡Р°Р№РЅС‹Рµ С†РµРЅС‚СЂРѕРёРґС‹
+    centers = X[rng.choice(len(X), size=k, replace=False)]
+    for _ in range(max_iter):
+        # РќР°Р·РЅР°С‡Р°РµРј С‚РѕС‡РєРё Рє Р±Р»РёР¶Р°Р№С€РµРјСѓ С†РµРЅС‚СЂСѓ
+        distances = np.linalg.norm(X[:, None, :] - centers[None, :, :], axis=2)
+        labels = np.argmin(distances, axis=1)
+        # РџРµСЂРµСЃС‡РёС‚С‹РІР°РµРј С†РµРЅС‚СЂС‹
+        new_centers = np.array([X[labels == i].mean(axis=0) if np.any(labels == i) else centers[i] for i in range(k)])
+        # Р•СЃР»Рё С†РµРЅС‚СЂС‹ РЅРµ РјРµРЅСЏСЋС‚СЃСЏ, РІС‹С…РѕРґРёРј
+        if np.allclose(centers, new_centers):
+            break
+        centers = new_centers
+    return labels
+
+
+# -----------------------------
+# 1) Р—Р°РіСЂСѓР·РєР° РґР°РЅРЅС‹С… (РІР°СЂРёР°РЅС‚ 7 -> Iris)
+# -----------------------------
+print("=== Р—РђР“Р РЈР—РљРђ Р”РђРќРќР«РҐ ===")
+
+lab5_dir = Path(__file__).resolve().parents[1]
+iris_path = lab5_dir.parent / "Lab5" / "Iris.csv"
+
+if not iris_path.exists():
+    raise FileNotFoundError(f"Р¤Р°Р№Р» Iris.csv РЅРµ РЅР°Р№РґРµРЅ: {iris_path}")
+
+iris = pd.read_csv(iris_path)
+
+# РЈРґР°Р»РёРј СЃС‚РѕР»Р±РµС† Id, РµСЃР»Рё РµСЃС‚СЊ
+if "Id" in iris.columns:
+    iris = iris.drop(columns=["Id"])
+
+# Р‘Р°Р·РѕРІР°СЏ РёРЅС„РѕСЂРјР°С†РёСЏ
+basic_info(iris, "Iris")
+
+# EDA
+print("\nIris: С‡РёСЃР»РѕРІР°СЏ СЃС‚Р°С‚РёСЃС‚РёРєР°")
+print(numeric_stats(iris))
+print("\nIris: РєР°С‚РµРіРѕСЂРёР°Р»СЊРЅР°СЏ СЃС‚Р°С‚РёСЃС‚РёРєР°")
+print(categorical_stats(iris))
+
+# -----------------------------
+# 2) РћР±СЂР°Р±РѕС‚РєР° РІС‹Р±СЂРѕСЃРѕРІ Рё РЅРѕСЂРјР°Р»РёР·Р°С†РёСЏ
+# -----------------------------
+print("\n=== РћР‘Р РђР‘РћРўРљРђ Р’Р«Р‘Р РћРЎРћР’ Р РќРћР РњРђР›РР—РђР¦РРЇ ===")
+
+# Р’С‹Р±СЂРѕСЃС‹ (IQR)
+iris = handle_outliers_iqr(iris, exclude=["Species"])
+
+# Р Р°Р·РґРµР»СЏРµРј РїСЂРёР·РЅР°РєРё Рё С†РµР»СЊ
+X = iris.drop(columns=["Species"])
+y = iris["Species"]
+
+# РќРѕСЂРјР°Р»РёР·Р°С†РёСЏ
 scaler = StandardScaler()
-X = data[numeric_cols]
-y = data['Species']
 X_scaled = scaler.fit_transform(X)
 
-# 3. Kernel PCA с разными ядрами
-kernels = ['linear', 'poly', 'rbf', 'sigmoid', 'cosine']
+# РљРѕРґРёСЂСѓРµРј РјРµС‚РєРё РєР»Р°СЃСЃРѕРІ
+le = LabelEncoder()
+y_encoded = le.fit_transform(y)
 
-plt.figure(figsize=(20, 15))
+# -----------------------------
+# 3) Kernel PCA (РІСЃРµ СЏРґСЂР°)
+# -----------------------------
+print("\n=== KERNEL PCA ===")
+
+kernels = ["linear", "poly", "rbf", "sigmoid", "cosine"]
+
+plt.figure(figsize=(20, 12))
 for i, kernel in enumerate(kernels, 1):
     kpca = KernelPCA(n_components=2, kernel=kernel)
     X_kpca = kpca.fit_transform(X_scaled)
-    
     plt.subplot(2, 3, i)
-    scatter = plt.scatter(X_kpca[:, 0], X_kpca[:, 1], c=y.astype('category').cat.codes)
-    plt.title(f'Kernel PCA ({kernel} kernel)')
-    plt.xlabel('Component 1')
-    plt.ylabel('Component 2')
-    plt.legend(handles=scatter.legend_elements()[0], labels=list(y.unique()))
-
+    scatter = plt.scatter(X_kpca[:, 0], X_kpca[:, 1], c=y_encoded, cmap="viridis")
+    plt.title(f"Kernel PCA ({kernel})")
+    plt.xlabel("Component 1")
+    plt.ylabel("Component 2")
 plt.tight_layout()
 plt.show()
 
-# 5. Анализ для линейного ядра
-kpca_linear = KernelPCA(n_components=2, kernel='linear', fit_inverse_transform=True)
+# Lost variance РґР»СЏ Р»РёРЅРµР№РЅРѕРіРѕ СЏРґСЂР°
+kpca_linear = KernelPCA(n_components=2, kernel="linear", fit_inverse_transform=True)
 X_kpca_linear = kpca_linear.fit_transform(X_scaled)
 X_back = kpca_linear.inverse_transform(X_kpca_linear)
-
-# Вычисление lost_variance
 lost_variance = np.mean(np.abs(X_scaled - X_back))
-print(f"\nLost variance для линейного ядра: {lost_variance:.4f}")
+print(f"Lost variance (linear kernel): {lost_variance:.4f}")
 
-# 6. Сравнение с t-SNE и UMAP
+# РЎРѕС…СЂР°РЅРµРЅРёРµ РјРѕРґРµР»Рё KernelPCA
+joblib.dump(kpca_linear, lab5_dir / "kpca_linear.joblib")
+
+# -----------------------------
+# 4) t-SNE Рё UMAP
+# -----------------------------
+print("\n=== t-SNE Рё UMAP ===")
+
 # t-SNE
 tsne = TSNE(n_components=2, random_state=42)
 X_tsne = tsne.fit_transform(X_scaled)
-
 plt.figure(figsize=(8, 6))
-scatter = plt.scatter(X_tsne[:, 0], X_tsne[:, 1], c=y.astype('category').cat.codes)
-plt.title('t-SNE проекция')
-plt.xlabel('Component 1')
-plt.ylabel('Component 2')
-plt.legend(handles=scatter.legend_elements()[0], labels=list(y.unique()))
+plt.scatter(X_tsne[:, 0], X_tsne[:, 1], c=y_encoded, cmap="viridis")
+plt.title("t-SNE")
+plt.xlabel("Component 1")
+plt.ylabel("Component 2")
 plt.show()
 
 # UMAP
 umap_model = umap.UMAP(random_state=42)
 X_umap = umap_model.fit_transform(X_scaled)
-
 plt.figure(figsize=(8, 6))
-scatter = plt.scatter(X_umap[:, 0], X_umap[:, 1], c=y.astype('category').cat.codes)
-plt.title('UMAP проекция')
-plt.xlabel('Component 1')
-plt.ylabel('Component 2')
-plt.legend(handles=scatter.legend_elements()[0], labels=list(y.unique()))
+plt.scatter(X_umap[:, 0], X_umap[:, 1], c=y_encoded, cmap="viridis")
+plt.title("UMAP")
+plt.xlabel("Component 1")
+plt.ylabel("Component 2")
 plt.show()
 
-# 7. Сохранение и загрузка модели
-# Разделение данных
-X_train, X_test, y_train, y_test = train_test_split(X_scaled, y, test_size=0.2, random_state=42)
+# РЎРѕС…СЂР°РЅРµРЅРёРµ UMAP
+joblib.dump(umap_model, lab5_dir / "umap_model.joblib")
 
-# Обучение модели
-model = RandomForestClassifier(random_state=42)
-model.fit(X_train, y_train)
+# LDA (РµСЃР»Рё РІРѕР·РјРѕР¶РЅРѕ)
+print("\n=== LDA ===")
+lda = LinearDiscriminantAnalysis(n_components=2)
+X_lda = lda.fit_transform(X_scaled, y_encoded)
+plt.figure(figsize=(8, 6))
+plt.scatter(X_lda[:, 0], X_lda[:, 1], c=y_encoded, cmap="viridis")
+plt.title("LDA")
+plt.xlabel("Component 1")
+plt.ylabel("Component 2")
+plt.show()
 
-# Сохранение модели
-joblib.dump(model, 'iris_model.joblib')
-print("\nМодель сохранена в файл 'iris_model.joblib'")
+# РЎРѕС…СЂР°РЅРµРЅРёРµ LDA
+joblib.dump(lda, lab5_dir / "lda_model.joblib")
 
-# Загрузка модели
-loaded_model = joblib.load('C:/Users/avazb/Desktop/BigData/Lab5/Lab5/iris_model.joblib')
-y_pred = loaded_model.predict(X_test)
-accuracy = accuracy_score(y_test, y_pred)
-print(f"\nТочность загруженной модели: {accuracy:.4f}")
+# -----------------------------
+# 5) РљР»Р°СЃС‚РµСЂРёР·Р°С†РёСЏ (k-means Рё РёРµСЂР°СЂС…РёС‡РµСЃРєР°СЏ)
+# -----------------------------
+print("\n=== РљР›РђРЎРўР•Р РР—РђР¦РРЇ ===")
 
+# РњРµС‚РѕРґ Р»РѕРєС‚СЏ Рё СЃРёР»СѓСЌС‚Р° РґР»СЏ РІС‹Р±РѕСЂР° k
+inertias = []
+silhouettes = []
+k_values = range(2, 8)
 
-# Визуализация кластеров K-means с использованием PCA
-from sklearn.decomposition import PCA
+for k in k_values:
+    kmeans = KMeans(n_clusters=k, random_state=42)
+    labels = kmeans.fit_predict(X_scaled)
+    inertias.append(kmeans.inertia_)
+    silhouettes.append(silhouette_score(X_scaled, labels))
 
-# Применяем PCA для визуализации в 2D
-pca = PCA(n_components=2)
-X_pca = pca.fit_transform(X_scaled)
+plt.figure(figsize=(10, 4))
+plt.subplot(1, 2, 1)
+plt.plot(k_values, inertias, marker="o")
+plt.title("РњРµС‚РѕРґ Р»РѕРєС‚СЏ")
+plt.xlabel("k")
+plt.ylabel("Inertia")
 
-# Кластеризация K-means
-kmeans = KMeans(n_clusters=3, random_state=42)
+plt.subplot(1, 2, 2)
+plt.plot(k_values, silhouettes, marker="o")
+plt.title("РЎРёР»СѓСЌС‚")
+plt.xlabel("k")
+plt.ylabel("Silhouette")
+plt.tight_layout()
+plt.show()
+
+# РћРїС‚РёРјР°Р»СЊРЅРѕРµ k РїРѕ СЃРёР»СѓСЌС‚Сѓ
+best_k_sil = k_values[int(np.argmax(silhouettes))]
+print(f"РћРїС‚РёРјР°Р»СЊРЅРѕРµ k РїРѕ СЃРёР»СѓСЌС‚Сѓ: {best_k_sil}")
+
+# Р”Р»СЏ Iris РєРѕР»РёС‡РµСЃС‚РІРѕ РєР»Р°СЃСЃРѕРІ РёР·РІРµСЃС‚РЅРѕ Р·Р°СЂР°РЅРµРµ (3)
+best_k = len(np.unique(y_encoded))
+print(f"Р’С‹Р±СЂР°РЅРЅРѕРµ k (РїРѕ С‡РёСЃР»Сѓ РєР»Р°СЃСЃРѕРІ): {best_k}")
+
+# KMeans (Р±РёР±Р»РёРѕС‚РµС‡РЅС‹Р№)
+kmeans = KMeans(n_clusters=best_k, random_state=42)
 clusters = kmeans.fit_predict(X_scaled)
 
-# Визуализация
-plt.figure(figsize=(10, 6))
-scatter = plt.scatter(X_pca[:, 0], X_pca[:, 1], c=clusters, cmap='viridis')
-plt.scatter(kmeans.cluster_centers_[:, 0], kmeans.cluster_centers_[:, 1], 
-            s=200, c='red', marker='X', label='Центроиды')
-plt.title('K-means кластеризация (k=3) с PCA проекцией')
-plt.xlabel('Principal Component 1')
-plt.ylabel('Principal Component 2')
-plt.legend()
-plt.colorbar(scatter, label='Кластер')
+# РЎСЂР°РІРЅРµРЅРёРµ СЃ РёСЃС‚РёРЅРЅС‹РјРё РјРµС‚РєР°РјРё
+ari_kmeans = adjusted_rand_score(y_encoded, clusters)
+print(f"ARI РґР»СЏ KMeans: {ari_kmeans:.4f}")
+
+# РљР°СЃС‚РѕРјРЅС‹Р№ k-means РґР»СЏ СЃСЂР°РІРЅРµРЅРёСЏ
+custom_labels = simple_kmeans(X_scaled, k=best_k)
+ari_custom = adjusted_rand_score(y_encoded, custom_labels)
+print(f"ARI РґР»СЏ custom k-means: {ari_custom:.4f}")
+
+# Р’РёР·СѓР°Р»РёР·Р°С†РёСЏ РєР»Р°СЃС‚РµСЂРѕРІ
+plt.figure(figsize=(8, 6))
+plt.scatter(X_kpca_linear[:, 0], X_kpca_linear[:, 1], c=clusters, cmap="viridis")
+plt.title("KMeans РєР»Р°СЃС‚РµСЂС‹ (KernelPCA РїСЂРѕРµРєС†РёСЏ)")
+plt.xlabel("Component 1")
+plt.ylabel("Component 2")
 plt.show()
 
-# Оценка качества кластеризации
-silhouette = silhouette_score(X_scaled, clusters)
-print(f"Silhouette Score для K-means: {silhouette:.3f}")
+# РЎРѕС…СЂР°РЅРµРЅРёРµ РјРѕРґРµР»Рё KMeans
+joblib.dump(kmeans, lab5_dir / "kmeans_model.joblib")
 
-# Выгрузка модели K-means
-joblib.dump(kmeans, 'kmeans_model.joblib')
-print("Модель K-means сохранена в файл 'kmeans_model.joblib'")
+# РРµСЂР°СЂС…РёС‡РµСЃРєР°СЏ РєР»Р°СЃС‚РµСЂРёР·Р°С†РёСЏ
+agg = AgglomerativeClustering(n_clusters=best_k, linkage="ward")
+agg_labels = agg.fit_predict(X_scaled)
 
-
-print("//////////////////////////")
-
-from sklearn.cluster import AgglomerativeClustering
-from scipy.cluster.hierarchy import dendrogram, linkage
-
-# Иерархическая кластеризация
-agg_clustering = AgglomerativeClustering(n_clusters=3, linkage='ward')
-agg_labels = agg_clustering.fit_predict(X_scaled)
-
-# Визуализация дендрограммы
-plt.figure(figsize=(12, 6))
-linked = linkage(X_scaled, method='ward')
-dendrogram(linked, orientation='top', truncate_mode='lastp', p=12)
-plt.title('Дендрограмма иерархической кластеризации (Ward linkage)')
-plt.xlabel('Индекс образца')
-plt.ylabel('Расстояние')
+# Р”РµРЅРґСЂРѕРіСЂР°РјРјР°
+plt.figure(figsize=(10, 5))
+linked = linkage(X_scaled, method="ward")
+dendrogram(linked, truncate_mode="lastp", p=12)
+plt.title("Р”РµРЅРґСЂРѕРіСЂР°РјРјР°")
+plt.xlabel("Samples")
+plt.ylabel("Distance")
 plt.show()
 
-# Визуализация кластеров
-plt.figure(figsize=(10, 6))
-scatter = plt.scatter(X_pca[:, 0], X_pca[:, 1], c=agg_labels, cmap='plasma')
-plt.title('Иерархическая кластеризация (k=3) с PCA проекцией')
-plt.xlabel('Principal Component 1')
-plt.ylabel('Principal Component 2')
-plt.colorbar(scatter, label='Кластер')
-plt.show()
+# РћС†РµРЅРєР° РёРµСЂР°СЂС…РёС‡РµСЃРєРѕР№ РєР»Р°СЃС‚РµСЂРёР·Р°С†РёРё
+ari_agg = adjusted_rand_score(y_encoded, agg_labels)
+print(f"ARI РґР»СЏ Agglomerative: {ari_agg:.4f}")
 
-from sklearn.preprocessing import LabelEncoder
-le = LabelEncoder()
-true_labels = le.fit_transform(y)
+# РЎРѕС…СЂР°РЅРµРЅРёРµ РјРѕРґРµР»Рё Agglomerative
+joblib.dump(agg, lab5_dir / "agg_clustering.joblib")
 
-# Оценка качества
-silhouette_agg = silhouette_score(X_scaled, agg_labels)
-ari_agg = adjusted_rand_score(true_labels, agg_labels)
-print(f"Silhouette Score для иерархической кластеризации: {silhouette_agg:.3f}")
-print(f"Adjusted Rand Index: {ari_agg:.3f}")
 
-# Выгрузка модели
-joblib.dump(agg_clustering, 'agg_clustering.joblib')
-print("Модель иерархической кластеризации сохранена в файл 'agg_clustering.joblib'")
+"""
+Р”Р›РЇ РћРўР§Р•РўРђ (РїРѕРґСЃРєР°Р·РєРё РґР»СЏ РґСЂСѓРіРѕР№ РР, СѓРґР°Р»РёС‚СЊ РїРµСЂРµРґ СЃРґР°С‡РµР№):
+
+1) Р”Р°С‚Р°СЃРµС‚: Iris (РІР°СЂРёР°РЅС‚ 7). Р¦РµР»РµРІРѕР№ СЃС‚РѕР»Р±РµС†: Species.
+2) EDA: СЃС‚СЂРѕРєРё/СЃС‚РѕР»Р±С†С‹, РїР°РјСЏС‚СЊ, С‡РёСЃР»РѕРІР°СЏ СЃС‚Р°С‚РёСЃС‚РёРєР°, РјРѕРґР° РєР°С‚РµРіРѕСЂРёР№.
+3) Р’С‹Р±СЂРѕСЃС‹ РѕР±СЂР°Р±РѕС‚Р°РЅС‹ IQR, РґР°РЅРЅС‹Рµ РЅРѕСЂРјР°Р»РёР·РѕРІР°РЅС‹ StandardScaler.
+4) KernelPCA РїСЂРёРјРµРЅС‘РЅ РґР»СЏ СЏРґРµСЂ: linear, poly, rbf, sigmoid, cosine; РіСЂР°С„РёРєРё РїРѕСЃС‚СЂРѕРµРЅС‹.
+5) Lost variance РґР»СЏ Р»РёРЅРµР№РЅРѕРіРѕ СЏРґСЂР° СЂР°СЃСЃС‡РёС‚Р°РЅР° С‡РµСЂРµР· РѕР±СЂР°С‚РЅРѕРµ РїСЂРµРѕР±СЂР°Р·РѕРІР°РЅРёРµ.
+6) t-SNE, UMAP Рё LDA РёСЃРїРѕР»СЊР·РѕРІР°РЅС‹ РґР»СЏ СЃСЂР°РІРЅРµРЅРёСЏ, РіСЂР°С„РёРєРё РїРѕСЃС‚СЂРѕРµРЅС‹.
+7) РљР»Р°СЃС‚РµСЂРёР·Р°С†РёСЏ: KMeans + Agglomerative, k РІС‹Р±СЂР°РЅРѕ РїРѕ РјРµС‚РѕРґСѓ Р»РѕРєС‚СЏ Рё СЃРёР»СѓСЌС‚Р°, Р·Р°С‚РµРј k=3 РїРѕ С‡РёСЃР»Сѓ РєР»Р°СЃСЃРѕРІ.
+8) РЎСЂР°РІРЅРµРЅРёРµ Р±РёР±Р»РёРѕС‚РµС‡РЅРѕРіРѕ KMeans Рё РєР°СЃС‚РѕРјРЅРѕРіРѕ (ARI).
+9) РњРѕРґРµР»Рё СЃРѕС…СЂР°РЅРµРЅС‹ joblib (kpca_linear, umap, lda, kmeans, agglomerative).
+"""
