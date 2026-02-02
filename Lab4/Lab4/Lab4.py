@@ -1,168 +1,350 @@
-# -*- coding: cp1251 -*-
-import pandas as pd
-import numpy as np
-from sklearn.model_selection import train_test_split
-from sklearn.preprocessing import StandardScaler, OneHotEncoder
-from sklearn.neighbors import KNeighborsRegressor
-from sklearn.linear_model import LinearRegression, Ridge
-from sklearn.metrics import mean_absolute_error, mean_squared_error, r2_score
-from sklearn.impute import SimpleImputer
-from sklearn.compose import ColumnTransformer
-from sklearn.pipeline import Pipeline
-import joblib
-import matplotlib.pyplot as plt
-import seaborn as sns
+Ôªø# -*- coding: utf-8 -*-
+"""
+–õ–∞–±–æ—Ä–∞—Ç–æ—Ä–Ω–∞—è —Ä–∞–±–æ—Ç–∞ 4
+–ú–∞—à–∏–Ω–Ω–æ–µ –æ–±—É—á–µ–Ω–∏–µ —Å —É—á–∏—Ç–µ–ª–µ–º. –ú–µ—Ç–æ–¥—ã —Ä–µ–≥—Ä–µ—Å—Å–∏–∏
+"""
 
-# 1. «‡„ÛÁÍ‡ ‰‡ÌÌ˚ı
-data = pd.read_csv('C:/Users/avazb/Desktop/BigData/Lab4/train.csv')
-if 'id' in data.columns:
-    data = data.drop(columns=['id'])
+import sqlite3  # —Ä–∞–±–æ—Ç–∞ —Å SQLite
+from pathlib import Path  # —É–¥–æ–±–Ω—ã–µ –ø—É—Ç–∏
 
-# œÓ‚ÂËÏ ‰ÓÒÚÛÔÌ˚Â ÒÚÓÎ·ˆ˚
-print("ƒÓÒÚÛÔÌ˚Â ÒÚÓÎ·ˆ˚ ‚ ‰‡ÌÌ˚ı:")
-print(data.columns.tolist())
+import numpy as np  # —á–∏—Å–ª–µ–Ω–Ω—ã–µ —Ä–∞—Å—á–µ—Ç—ã
+import pandas as pd  # —Ç–∞–±–ª–∏—á–Ω—ã–µ –¥–∞–Ω–Ω—ã–µ
+import matplotlib  # –±–∞–∑–æ–≤—ã–π matplotlib
+matplotlib.use("TkAgg")  # –æ—Ç–¥–µ–ª—å–Ω—ã–µ –æ–∫–Ω–∞ –≥—Ä–∞—Ñ–∏–∫–æ–≤
+import matplotlib.pyplot as plt  # –≥—Ä–∞—Ñ–∏–∫–∏
 
-# 2. ŒÔÂ‰ÂÎËÏ ˆÂÎÂ‚Û˛ ÔÂÂÏÂÌÌÛ˛ (Á‡ÏÂÌËÚÂ 'target_column' Ì‡ Â‡Î¸ÌÓÂ Ì‡Á‚‡ÌËÂ)
-target_column = 'price'  # »ÁÏÂÌËÚÂ Ì‡ Ô‡‚ËÎ¸ÌÓÂ Ì‡Á‚‡ÌËÂ ÒÚÓÎ·ˆ‡ Ò ˆÂÎÂ‚ÓÈ ÔÂÂÏÂÌÌÓÈ
-if target_column not in data.columns:
-    # ≈ÒÎË ÒÚÓÎ·Âˆ 'price' ÓÚÒÛÚÒÚ‚ÛÂÚ, ‚ÓÁ¸ÏÂÏ ÔÓÒÎÂ‰ÌËÈ ˜ËÒÎÓ‚ÓÈ ÒÚÓÎ·Âˆ Í‡Í ˆÂÎÂ‚Û˛ ÔÂÂÏÂÌÌÛ˛
-    numeric_cols = data.select_dtypes(include=np.number).columns.tolist()
-    target_column = numeric_cols[-1]
-    print(f"\n—ÚÓÎ·Âˆ 'price' ÌÂ Ì‡È‰ÂÌ. »ÒÔÓÎ¸ÁÛÂÏ '{target_column}' Í‡Í ˆÂÎÂ‚Û˛ ÔÂÂÏÂÌÌÛ˛.")
-
-# 2. –‡Á‚Â‰Ó˜Ì˚È ‡Ì‡ÎËÁ ‰‡ÌÌ˚ı
-print("\n2. –‡Á‚Â‰Ó˜Ì˚È ‡Ì‡ÎËÁ ‰‡ÌÌ˚ı:")
-print(f"a. –‡ÁÏÂ ‰‡Ú‡ÙÂÈÏ‡: {data.shape[0]} ÒÚÓÍ, {data.shape[1]} ÒÚÓÎ·ˆÓ‚")
-print(f"b. Œ·˙ÂÏ Ô‡ÏˇÚË: {data.memory_usage().sum() / 1024**2:.2f} MB")
-
-# ¿Ì‡ÎËÁ ˜ËÒÎÓ‚˚ı ÔÂÂÏÂÌÌ˚ı
-numeric_cols = data.select_dtypes(include=np.number).columns.tolist()
-
-numeric_cols.remove(target_column)  # »ÒÍÎ˛˜‡ÂÏ ˆÂÎÂ‚Û˛ ÔÂÂÏÂÌÌÛ˛
-print("\nc. ŒÔËÒ‡ÚÂÎ¸Ì˚Â ÒÚ‡ÚËÒÚËÍË ‰Îˇ ˜ËÒÎÓ‚˚ı ÔÂÂÏÂÌÌ˚ı:")
-print(data[numeric_cols].describe(percentiles=[0.25, 0.75]))
-
-# ¿Ì‡ÎËÁ Í‡ÚÂ„ÓË‡Î¸Ì˚ı ÔÂÂÏÂÌÌ˚ı
-cat_cols = data.select_dtypes(include=['object']).columns.tolist()
-print("\nd. ¿Ì‡ÎËÁ Í‡ÚÂ„ÓË‡Î¸Ì˚ı ÔÂÂÏÂÌÌ˚ı:")
-for col in cat_cols:
-    mode_val = data[col].mode()[0]
-    mode_count = data[col].value_counts().iloc[0]
-    print(f"{col}: ÏÓ‰‡ = {mode_val} (‚ÒÚÂ˜‡ÂÚÒˇ {mode_count} ‡Á)")
-
-# 3. œÓ‰„ÓÚÓ‚Í‡ ‰‡ÌÌ˚ı
-# a. Œ·‡·ÓÚÍ‡ ÔÓÔÛÒÍÓ‚
-print("\n3a. ¿Ì‡ÎËÁ ÔÓÔÛ˘ÂÌÌ˚ı ÁÌ‡˜ÂÌËÈ:")
-print(data.isnull().sum())
+from scipy.stats import ttest_ind, pearsonr  # —Å—Ç–∞—Ç–∏—Å—Ç–∏—á–µ—Å–∫–∏–µ —Ç–µ—Å—Ç—ã
+from sklearn.model_selection import train_test_split  # —Ä–∞–∑–±–∏–µ–Ω–∏–µ train/test
+from sklearn.preprocessing import StandardScaler  # –Ω–æ—Ä–º–∞–ª–∏–∑–∞—Ü–∏—è
+from sklearn.compose import ColumnTransformer  # —Ä–∞–∑–Ω—ã–µ –ø—Ä–µ–æ–±—Ä–∞–∑–æ–≤–∞–Ω–∏—è –¥–ª—è —Ä–∞–∑–Ω—ã—Ö —Ç–∏–ø–æ–≤
+from sklearn.preprocessing import OneHotEncoder  # one-hot –∫–æ–¥–∏—Ä–æ–≤–∞–Ω–∏–µ
+from sklearn.pipeline import Pipeline  # –ø–∞–π–ø–ª–∞–π–Ω—ã
+from sklearn.neighbors import KNeighborsRegressor  # KNN —Ä–µ–≥—Ä–µ—Å—Å–∏—è
+from sklearn.linear_model import LinearRegression, Ridge, Lasso  # –ª–∏–Ω–µ–π–Ω—ã–µ –º–æ–¥–µ–ª–∏
+from sklearn.metrics import mean_absolute_error, mean_squared_error, r2_score  # –º–µ—Ç—Ä–∏–∫–∏
+import joblib  # —Å–æ—Ö—Ä–∞–Ω–µ–Ω–∏–µ –º–æ–¥–µ–ª–µ–π
 
 
+# -----------------------------
+# –í—Å–ø–æ–º–æ–≥–∞—Ç–µ–ª—å–Ω—ã–µ —Ñ—É–Ω–∫—Ü–∏–∏
+# -----------------------------
+
+def basic_info(df: pd.DataFrame, name: str) -> None:
+    """–ë–∞–∑–æ–≤–∞—è –∏–Ω—Ñ–æ—Ä–º–∞—Ü–∏—è –æ –¥–∞—Ç–∞—Å–µ—Ç–µ."""
+    rows, cols = df.shape
+    memory_usage = df.memory_usage(deep=True).sum()
+    print(f"\n{name}: –∫–æ–ª–∏—á–µ—Å—Ç–≤–æ —Å—Ç—Ä–æ–∫ = {rows}, –∫–æ–ª–∏—á–µ—Å—Ç–≤–æ —Å—Ç–æ–ª–±—Ü–æ–≤ = {cols}")
+    print(f"{name}: –ø–∞–º—è—Ç—å = {memory_usage} –±–∞–π—Ç")
 
 
-# b. Œ·‡·ÓÚÍ‡ ‚˚·ÓÒÓ‚ (‚ËÁÛ‡ÎËÁ‡ˆËˇ)
-plt.figure(figsize=(12, 8))
-sns.boxplot(data=data[numeric_cols])
-plt.xticks(rotation=45)
-plt.title("–‡ÒÔÂ‰ÂÎÂÌËÂ ˜ËÒÎÓ‚˚ı ÔÂÂÏÂÌÌ˚ı")
-plt.show()
+def numeric_stats(df: pd.DataFrame) -> pd.DataFrame:
+    """–°—Ç–∞—Ç–∏—Å—Ç–∏–∫–∞ –¥–ª—è —á–∏—Å–ª–æ–≤—ã—Ö –ø—Ä–∏–∑–Ω–∞–∫–æ–≤."""
+    numeric_cols = df.select_dtypes(include=["int64", "float64", "int32", "float32"]).columns
+    stats = df[numeric_cols].describe(percentiles=[0.25, 0.5, 0.75]).T
+    stats = stats[["min", "50%", "mean", "max", "25%", "75%"]]
+    stats.columns = ["min", "median", "mean", "max", "p25", "p75"]
+    return stats
 
-# c.  Ó‰ËÓ‚‡ÌËÂ Í‡ÚÂ„ÓË‡Î¸Ì˚ı ÔÂÂÏÂÌÌ˚ı
-preprocessor = ColumnTransformer(
-    transformers=[
-        ('num', StandardScaler(), numeric_cols),
-        ('cat', OneHotEncoder(handle_unknown='ignore'), cat_cols)
-    ])
 
-# d. œÓ‚ÂÍ‡ „ËÔÓÚÂÁ
-print("\n3d. œÓ‚ÂÍ‡ „ËÔÓÚÂÁ:")
-# √ËÔÓÚÂÁ‡ 1: ÷ÂÎÂ‚‡ˇ ÔÂÂÏÂÌÌ‡ˇ Á‡‚ËÒËÚ ÓÚ ÔÂ‚Ó„Ó ˜ËÒÎÓ‚Ó„Ó ÔËÁÌ‡Í‡
-if len(numeric_cols) > 0:
-    corr = data[numeric_cols[0]].corr(data[target_column])
-    print(f" ÓÂÎˇˆËˇ ÏÂÊ‰Û {numeric_cols[0]} Ë {target_column}: {corr:.3f}")
+def categorical_stats(df: pd.DataFrame) -> pd.DataFrame:
+    """–°—Ç–∞—Ç–∏—Å—Ç–∏–∫–∞ –¥–ª—è –∫–∞—Ç–µ–≥–æ—Ä–∏–∞–ª—å–Ω—ã—Ö –ø—Ä–∏–∑–Ω–∞–∫–æ–≤."""
+    cat_cols = df.select_dtypes(include=["object", "category", "string"]).columns
+    summary = pd.DataFrame(index=cat_cols, columns=["mode", "mode_count"])
+    for col in cat_cols:
+        if df[col].notna().any():
+            mode_val = df[col].mode()[0]
+            mode_count = df[col].value_counts().iloc[0]
+            summary.loc[col] = [mode_val, mode_count]
+    return summary
 
-# √ËÔÓÚÂÁ‡ 2: ¬ÎËˇÌËÂ Í‡ÚÂ„ÓË‡Î¸ÌÓÈ ÔÂÂÏÂÌÌÓÈ (ÂÒÎË ÂÒÚ¸)
-if len(cat_cols) > 0:
-    cat_price = data.groupby(cat_cols[0])[target_column].mean()
-    print(f"\n—Â‰ÌÂÂ ÁÌ‡˜ÂÌËÂ {target_column} ÔÓ Í‡ÚÂ„ÓËˇÏ {cat_cols[0]}:")
-    print(cat_price)
 
-# e. –‡Á‰ÂÎÂÌËÂ ‰‡ÌÌ˚ı
-X = data.drop(target_column, axis=1)
-y = data[target_column]
-X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, random_state=42)
+def handle_missing(df: pd.DataFrame) -> pd.DataFrame:
+    """–û–±—Ä–∞–±–æ—Ç–∫–∞ –ø—Ä–æ–ø—É—Å–∫–æ–≤: —á–∏—Å–ª–æ–≤—ã–µ -> –º–µ–¥–∏–∞–Ω–∞, –∫–∞—Ç–µ–≥–æ—Ä–∏–∞–ª—å–Ω—ã–µ -> –º–æ–¥–∞."""
+    df = df.copy()
+    for col in df.columns:
+        if df[col].dtype in ["int64", "float64", "int32", "float32"]:
+            df[col] = df[col].fillna(df[col].median())
+        else:
+            if df[col].notna().any():
+                df[col] = df[col].fillna(df[col].mode()[0])
+            else:
+                df[col] = df[col].fillna("unknown")
+    return df
 
-# 4. œÓÒÚÓÂÌËÂ ÏÓ‰ÂÎÂÈ
+
+def handle_outliers_iqr(df: pd.DataFrame, exclude: list[str] | None = None) -> pd.DataFrame:
+    """–û–±—Ä–∞–±–æ—Ç–∫–∞ –≤—ã–±—Ä–æ—Å–æ–≤ –ø–æ IQR: –æ–≥—Ä–∞–Ω–∏—á–µ–Ω–∏–µ –∑–Ω–∞—á–µ–Ω–∏–π –≤ [Q1-1.5*IQR, Q3+1.5*IQR]."""
+    df = df.copy()
+    exclude = exclude or []
+    numeric_cols = df.select_dtypes(include=["int64", "float64", "int32", "float32"]).columns
+    for col in numeric_cols:
+        if col in exclude:
+            continue
+        q1 = df[col].quantile(0.25)
+        q3 = df[col].quantile(0.75)
+        iqr = q3 - q1
+        low = q1 - 1.5 * iqr
+        high = q3 + 1.5 * iqr
+        df[col] = df[col].clip(lower=low, upper=high)
+    return df
+
+
+def regression_metrics(y_true: np.ndarray, y_pred: np.ndarray) -> dict:
+    """–ü–æ–¥—Å—á–µ—Ç –º–µ—Ç—Ä–∏–∫ —Ä–µ–≥—Ä–µ—Å—Å–∏–∏."""
+    mae = mean_absolute_error(y_true, y_pred)
+    mse = mean_squared_error(y_true, y_pred)
+    rmse = np.sqrt(mse)
+    # MAPE: —Å—á–∏—Ç–∞–µ–º —Ç–æ–ª—å–∫–æ —Ç–∞–º, –≥–¥–µ y_true != 0
+    mask = y_true != 0
+    if np.any(mask):
+        mape = np.mean(np.abs((y_true[mask] - y_pred[mask]) / y_true[mask])) * 100
+    else:
+        mape = np.nan
+    r2 = r2_score(y_true, y_pred)
+    return {"MAE": mae, "MSE": mse, "RMSE": rmse, "MAPE": mape, "R2": r2}
+
+
+def build_preprocessor(X: pd.DataFrame):
+    """–ü–æ—Å—Ç—Ä–æ–µ–Ω–∏–µ –ø—Ä–µ–ø—Ä–æ—Ü–µ—Å—Å–æ—Ä–∞: –Ω–æ—Ä–º–∞–ª–∏–∑–∞—Ü–∏—è —á–∏—Å–ª–æ–≤—ã—Ö –∏ OneHot –¥–ª—è –∫–∞—Ç–µ–≥–æ—Ä–∏–π."""
+    num_cols = X.select_dtypes(include=["int64", "float64", "int32", "float32"]).columns
+    cat_cols = X.select_dtypes(include=["object", "category", "string"]).columns
+    preprocessor = ColumnTransformer(
+        transformers=[
+            ("num", StandardScaler(), num_cols),
+            ("cat", OneHotEncoder(handle_unknown="ignore"), cat_cols),
+        ]
+    )
+    return preprocessor
+
+
+def evaluate_models(X_train, X_test, y_train, y_test, models: dict) -> pd.DataFrame:
+    """–û–±—É—á–µ–Ω–∏–µ –∏ –æ—Ü–µ–Ω–∫–∞ –Ω–µ—Å–∫–æ–ª—å–∫–∏—Ö –º–æ–¥–µ–ª–µ–π."""
+    results = {}
+    for name, model in models.items():
+        model.fit(X_train, y_train)
+        y_pred = model.predict(X_test)
+        metrics = regression_metrics(y_test, y_pred)
+        results[name] = metrics
+        print(f"\n–ú–æ–¥–µ–ª—å: {name}")
+        for k, v in metrics.items():
+            print(f"{k}: {v:.4f}")
+    return pd.DataFrame(results).T
+
+
+# -----------------------------
+# –ß–∞—Å—Ç—å 1: –û–±—â–∞—è —á–∞—Å—Ç—å (Kaggle dataset –ø–æ –≤–∞—Ä–∏–∞–Ω—Ç—É)
+# –í–∞—Ä–∏–∞–Ω—Ç 7 -> –ü–∞—Ä–∏–∂. –°—Ç–æ–∏–º–æ—Å—Ç—å –∂–∏–ª—å—è (train.csv)
+# -----------------------------
+print("=== –û–ë–©–ê–Ø –ß–ê–°–¢–¨: Kaggle dataset ===")
+
+lab4_dir = Path(__file__).resolve().parents[1]
+train_path = lab4_dir.parent / "Lab4" / "train.csv"
+
+if not train_path.exists():
+    raise FileNotFoundError(f"–§–∞–π–ª train.csv –Ω–µ –Ω–∞–π–¥–µ–Ω: {train_path}")
+
+kaggle_df = pd.read_csv(train_path)
+
+# –£–¥–∞–ª–∏–º id
+if "id" in kaggle_df.columns:
+    kaggle_df = kaggle_df.drop(columns=["id"])
+
+# –¶–µ–ª–µ–≤–∞—è –ø–µ—Ä–µ–º–µ–Ω–Ω–∞—è
+target_col = "price"
+if target_col not in kaggle_df.columns:
+    raise ValueError("–¶–µ–ª–µ–≤–æ–π —Å—Ç–æ–ª–±–µ—Ü 'price' –Ω–µ –Ω–∞–π–¥–µ–Ω")
+
+# –ë–∞–∑–æ–≤–∞—è –∏–Ω—Ñ–æ—Ä–º–∞—Ü–∏—è
+basic_info(kaggle_df, "Kaggle")
+
+# EDA
+print("\nKaggle: —á–∏—Å–ª–æ–≤–∞—è —Å—Ç–∞—Ç–∏—Å—Ç–∏–∫–∞")
+print(numeric_stats(kaggle_df))
+print("\nKaggle: –∫–∞—Ç–µ–≥–æ—Ä–∏–∞–ª—å–Ω–∞—è —Å—Ç–∞—Ç–∏—Å—Ç–∏–∫–∞")
+print(categorical_stats(kaggle_df))
+
+# –ü—Ä–æ–ø—É—Å–∫–∏
+print("\nKaggle: –ø—Ä–æ–ø—É—Å–∫–∏")
+print(kaggle_df.isna().sum())
+
+# –û–±—Ä–∞–±–æ—Ç–∫–∞ –ø—Ä–æ–ø—É—Å–∫–æ–≤ –∏ –≤—ã–±—Ä–æ—Å–æ–≤
+kaggle_df = handle_missing(kaggle_df)
+kaggle_df = handle_outliers_iqr(kaggle_df, exclude=[target_col])
+
+# –ì–∏–ø–æ—Ç–µ–∑—ã
+print("\nKaggle: –≥–∏–ø–æ—Ç–µ–∑—ã")
+# –ì–∏–ø–æ—Ç–µ–∑–∞ 1: –µ—Å—Ç—å –∫–æ—Ä—Ä–µ–ª—è—Ü–∏—è –º–µ–∂–¥—É –ø–ª–æ—â–∞–¥—å—é –∏ —Ü–µ–Ω–æ–π
+corr, p_val = pearsonr(kaggle_df["squareMeters"], kaggle_df[target_col])
+print(f"–ö–æ—Ä—Ä–µ–ª—è—Ü–∏—è squareMeters –∏ price: r={corr:.4f}, p-value={p_val:.4e}")
+# –ì–∏–ø–æ—Ç–µ–∑–∞ 2: —Å—Ä–µ–¥–Ω—è—è —Ü–µ–Ω–∞ –æ—Ç–ª–∏—á–∞–µ—Ç—Å—è –¥–ª—è –¥–æ–º–æ–≤ —Å –±–∞—Å—Å–µ–π–Ω–æ–º –∏ –±–µ–∑
+pool_yes = kaggle_df[kaggle_df["hasPool"] == 1][target_col]
+pool_no = kaggle_df[kaggle_df["hasPool"] == 0][target_col]
+if len(pool_yes) > 0 and len(pool_no) > 0:
+    t_stat, p_value = ttest_ind(pool_yes, pool_no, equal_var=False)
+    print(f"t-test (hasPool): p-value={p_value:.4e}")
+
+# –†–∞–∑–¥–µ–ª–µ–Ω–∏–µ –Ω–∞ –ø—Ä–∏–∑–Ω–∞–∫–∏ –∏ —Ü–µ–ª—å
+X = kaggle_df.drop(columns=[target_col])
+y = kaggle_df[target_col]
+
+# –ü—Ä–µ–ø—Ä–æ—Ü–µ—Å—Å–æ—Ä –∏ –º–æ–¥–µ–ª–∏
+preprocessor = build_preprocessor(X)
+
 models = {
-    'Linear Regression': LinearRegression(),
-    'Ridge Regression': Ridge(alpha=1.0),
-    'KNN': KNeighborsRegressor(n_neighbors=5)
+    "LinearRegression": Pipeline([("preprocessor", preprocessor), ("model", LinearRegression())]),
+    "Ridge": Pipeline([("preprocessor", preprocessor), ("model", Ridge(alpha=1.0))]),
+    "KNN": Pipeline([("preprocessor", preprocessor), ("model", KNeighborsRegressor(n_neighbors=5))]),
+    "Lasso": Pipeline([("preprocessor", preprocessor), ("model", Lasso(alpha=0.001, max_iter=2000))]),
 }
 
-# —ÓÁ‰‡ÌËÂ Ô‡ÈÔÎ‡ÈÌ‡ Ò ÔÂ‰Ó·‡·ÓÚÍÓÈ Ë ÏÓ‰ÂÎ¸˛
-results = {}
-for name, model in models.items():
-    try:
-        pipeline = Pipeline(steps=[
-            ('preprocessor', preprocessor),
-            ('model', model)
-        ])
-        pipeline.fit(X_train, y_train)
-        y_pred = pipeline.predict(X_test)
-        
-        # 5. ŒˆÂÌÍ‡ Í‡˜ÂÒÚ‚‡
-        mae = mean_absolute_error(y_test, y_pred)
-        mse = mean_squared_error(y_test, y_pred)
-        rmse = np.sqrt(mse)
-        r2 = r2_score(y_test, y_pred)
-        
-        results[name] = {
-            'MAE': mae,
-            'MSE': mse,
-            'RMSE': rmse,
-            'R2': r2
-        }
-        
-        print(f"\nÃÓ‰ÂÎ¸: {name}")
-        print(f"MAE: {mae:.2f}")
-        print(f"MSE: {mse:.2f}")
-        print(f"RMSE: {rmse:.2f}")
-        print(f"R2: {r2:.2f}")
-    except Exception as e:
-        print(f"\nŒ¯Ë·Í‡ ÔË Ó·Û˜ÂÌËË ÏÓ‰ÂÎË {name}: {str(e)}")
+# –†–∞–∑–¥–µ–ª–µ–Ω–∏–µ train/test
+X_train, X_test, y_train, y_test = train_test_split(
+    X, y, test_size=0.2, random_state=42
+)
 
-# —‡‚ÌÂÌËÂ ÏÓ‰ÂÎÂÈ
-if results:
-    results_df = pd.DataFrame(results).T
-    print("\n—‡‚ÌÂÌËÂ ÏÓ‰ÂÎÂÈ:")
-    print(results_df)
+# –û–±—É—á–µ–Ω–∏–µ –∏ –æ—Ü–µ–Ω–∫–∞
+results = evaluate_models(X_train, X_test, y_train, y_test, models)
+print("\n–°—Ä–∞–≤–Ω–µ–Ω–∏–µ –º–æ–¥–µ–ª–µ–π:")
+print(results)
 
-    # ¬ËÁÛ‡ÎËÁ‡ˆËˇ ÂÁÛÎ¸Ú‡ÚÓ‚
-    results_df[['MAE', 'RMSE']].plot(kind='bar', figsize=(10, 6))
-    plt.title('—‡‚ÌÂÌËÂ ÏÂÚËÍ Ó¯Ë·ÓÍ')
-    plt.ylabel('«Ì‡˜ÂÌËÂ ÏÂÚËÍË')
-    plt.xticks(rotation=45)
-    plt.show()
+# –í—ã–±–æ—Ä –ª—É—á—à–µ–π –º–æ–¥–µ–ª–∏ –ø–æ R2
+best_model_name = results["R2"].idxmax()
+print(f"\n–õ—É—á—à–∞—è –º–æ–¥–µ–ª—å: {best_model_name}")
 
-    # 6. —Óı‡ÌÂÌËÂ ÎÛ˜¯ÂÈ ÏÓ‰ÂÎË
-    best_model_name = results_df['R2'].idxmax()
-    print(f"\nÀÛ˜¯‡ˇ ÏÓ‰ÂÎ¸: {best_model_name}")
+# –°–æ—Ö—Ä–∞–Ω–µ–Ω–∏–µ –ª—É—á—à–µ–π –º–æ–¥–µ–ª–∏
+best_model = models[best_model_name]
+best_model.fit(X_train, y_train)
+model_path = lab4_dir / "best_model.joblib"
+joblib.dump(best_model, model_path)
+print(f"–ú–æ–¥–µ–ª—å —Å–æ—Ö—Ä–∞–Ω–µ–Ω–∞: {model_path}")
 
-    for name, model in models.items():
-        if name == best_model_name:
-            pipeline = Pipeline(steps=[
-                ('preprocessor', preprocessor),
-                ('model', model)
-            ])
-            pipeline.fit(X_train, y_train)
-            joblib.dump(pipeline, 'best_model.joblib')
-            print("ÃÓ‰ÂÎ¸ ÒÓı‡ÌÂÌ‡ Í‡Í 'best_model.joblib'")
+# –ó–∞–≥—Ä—É–∑–∫–∞ –º–æ–¥–µ–ª–∏ –∏ –ø—Ä–æ–≤–µ—Ä–∫–∞
+loaded_model = joblib.load(model_path)
+y_pred_loaded = loaded_model.predict(X_test.head())
+print("\n–ü—Ä–æ–≥–Ω–æ–∑—ã –∑–∞–≥—Ä—É–∂–µ–Ω–Ω–æ–π –º–æ–¥–µ–ª–∏ (–ø–µ—Ä–≤—ã–µ 5 —Å—Ç—Ä–æ–∫):")
+print(y_pred_loaded)
 
-    # «‡„ÛÁÍ‡ ÏÓ‰ÂÎË ‰Îˇ ÔÓ‚ÂÍË
-    try:
-        loaded_model = joblib.load('best_model.joblib')
-        y_pred_loaded = loaded_model.predict(X_test.head())
-        print("\nœÓ„ÌÓÁ˚ Á‡„ÛÊÂÌÌÓÈ ÏÓ‰ÂÎË Ì‡ ÔÂ‚˚ı 5 ÔËÏÂ‡ı:")
-        print(y_pred_loaded)
-    except Exception as e:
-        print(f"Œ¯Ë·Í‡ ÔË Á‡„ÛÁÍÂ ÏÓ‰ÂÎË: {str(e)}")
-else:
-    print("ÕË Ó‰Ì‡ ËÁ ÏÓ‰ÂÎÂÈ ÌÂ ·˚Î‡ ÛÒÔÂ¯ÌÓ Ó·Û˜ÂÌ‡.")
+
+# -----------------------------
+# –ß–∞—Å—Ç—å 2: –°–∞–º–æ—Å—Ç–æ—è—Ç–µ–ª—å–Ω–∞—è —á–∞—Å—Ç—å (–¥–∞–Ω–Ω—ã–µ –∏–∑ –õ–∞–±—ã 1 - F1 SQLite)
+# -----------------------------
+print("\n=== –°–ê–ú–û–°–¢–û–Ø–¢–ï–õ–¨–ù–ê–Ø –ß–ê–°–¢–¨: F1 SQLite ===")
+
+f1_db = lab4_dir.parent / "Lab1" / "Formula 1 Race Data" / "Formula1.sqlite"
+if not f1_db.exists():
+    raise FileNotFoundError(f"–ë–∞–∑–∞ –¥–∞–Ω–Ω—ã—Ö –Ω–µ –Ω–∞–π–¥–µ–Ω–∞: {f1_db}")
+
+conn = sqlite3.connect(f1_db)
+query = """
+SELECT
+    r.raceId,
+    r.year,
+    r.round,
+    r.name AS race_name,
+    d.nationality AS driver_nationality,
+    con.name AS constructor_name,
+    res.grid,
+    res.positionOrder,
+    res.points,
+    res.laps,
+    res.statusId
+FROM results res
+JOIN races r ON r.raceId = res.raceId
+JOIN drivers d ON d.driverId = res.driverId
+JOIN constructors con ON con.constructorId = res.constructorId
+"""
+
+f1_df = pd.read_sql_query(query, conn)
+conn.close()
+
+# –¶–µ–ª–µ–≤–∞—è –ø–µ—Ä–µ–º–µ–Ω–Ω–∞—è –¥–ª—è —Ä–µ–≥—Ä–µ—Å—Å–∏–∏: points
+f1_target = "points"
+
+# –ë–∞–∑–æ–≤–∞—è –∏–Ω—Ñ–æ—Ä–º–∞—Ü–∏—è
+basic_info(f1_df, "F1")
+
+# EDA
+print("\nF1: —á–∏—Å–ª–æ–≤–∞—è —Å—Ç–∞—Ç–∏—Å—Ç–∏–∫–∞")
+print(numeric_stats(f1_df))
+print("\nF1: –∫–∞—Ç–µ–≥–æ—Ä–∏–∞–ª—å–Ω–∞—è —Å—Ç–∞—Ç–∏—Å—Ç–∏–∫–∞")
+print(categorical_stats(f1_df))
+
+# –ü—Ä–æ–ø—É—Å–∫–∏
+print("\nF1: –ø—Ä–æ–ø—É—Å–∫–∏")
+print(f1_df.isna().sum())
+
+# –û–±—Ä–∞–±–æ—Ç–∫–∞ –ø—Ä–æ–ø—É—Å–∫–æ–≤ –∏ –≤—ã–±—Ä–æ—Å–æ–≤
+f1_df = handle_missing(f1_df)
+f1_df = handle_outliers_iqr(f1_df, exclude=[f1_target])
+
+# –ì–∏–ø–æ—Ç–µ–∑—ã
+print("\nF1: –≥–∏–ø–æ—Ç–µ–∑—ã")
+# –ì–∏–ø–æ—Ç–µ–∑–∞ 1: –µ—Å—Ç—å –∫–æ—Ä—Ä–µ–ª—è—Ü–∏—è grid –∏ points
+corr, p_val = pearsonr(f1_df["grid"], f1_df[f1_target])
+print(f"–ö–æ—Ä—Ä–µ–ª—è—Ü–∏—è grid –∏ points: r={corr:.4f}, p-value={p_val:.4e}")
+# –ì–∏–ø–æ—Ç–µ–∑–∞ 2: —Å—Ä–µ–¥–Ω–∏–µ points —É British –∏ German —Ä–∞–∑–ª–∏—á–∞—é—Ç—Å—è
+brit = f1_df[f1_df["driver_nationality"] == "British"][f1_target]
+germ = f1_df[f1_df["driver_nationality"] == "German"][f1_target]
+if len(brit) > 0 and len(germ) > 0:
+    t_stat, p_value = ttest_ind(brit, germ, equal_var=False)
+    print(f"t-test (British vs German): p-value={p_value:.4e}")
+
+# –†–∞–∑–¥–µ–ª–µ–Ω–∏–µ –Ω–∞ –ø—Ä–∏–∑–Ω–∞–∫–∏ –∏ —Ü–µ–ª—å
+X2 = f1_df.drop(columns=[f1_target])
+y2 = f1_df[f1_target]
+
+# –ü—Ä–µ–ø—Ä–æ—Ü–µ—Å—Å–æ—Ä –∏ –º–æ–¥–µ–ª–∏
+preprocessor2 = build_preprocessor(X2)
+
+models2 = {
+    "LinearRegression": Pipeline([("preprocessor", preprocessor2), ("model", LinearRegression())]),
+    "Ridge": Pipeline([("preprocessor", preprocessor2), ("model", Ridge(alpha=1.0))]),
+    "KNN": Pipeline([("preprocessor", preprocessor2), ("model", KNeighborsRegressor(n_neighbors=5))]),
+}
+
+# –†–∞–∑–¥–µ–ª–µ–Ω–∏–µ train/test
+X2_train, X2_test, y2_train, y2_test = train_test_split(
+    X2, y2, test_size=0.2, random_state=42
+)
+
+# –û–±—É—á–µ–Ω–∏–µ –∏ –æ—Ü–µ–Ω–∫–∞
+results2 = evaluate_models(X2_train, X2_test, y2_train, y2_test, models2)
+print("\n–°—Ä–∞–≤–Ω–µ–Ω–∏–µ –º–æ–¥–µ–ª–µ–π (F1):")
+print(results2)
+
+# –õ—É—á—à–∏–π –∞–ª–≥–æ—Ä–∏—Ç–º –ø–æ R2
+best_model_name2 = results2["R2"].idxmax()
+print(f"\n–õ—É—á—à–∞—è –º–æ–¥–µ–ª—å (F1): {best_model_name2}")
+
+
+"""
+–î–õ–Ø –û–¢–ß–ï–¢–ê (–ø–æ–¥—Å–∫–∞–∑–∫–∏ –¥–ª—è –¥—Ä—É–≥–æ–π –ò–ò, —É–¥–∞–ª–∏—Ç—å –ø–µ—Ä–µ–¥ —Å–¥–∞—á–µ–π):
+
+1) –û–±—â–∞—è —á–∞—Å—Ç—å (Kaggle, Paris housing):
+- –î–∞—Ç–∞—Å–µ—Ç train.csv –∏–∑ Lab4.
+- –¶–µ–ª–µ–≤–æ–π —Å—Ç–æ–ª–±–µ—Ü: price.
+- –ü—Ä–æ–≤–µ–¥–µ–Ω—ã: —Å—Ç—Ä–æ–∫–∏/—Å—Ç–æ–ª–±—Ü—ã, –ø–∞–º—è—Ç—å, —Å—Ç–∞—Ç–∏—Å—Ç–∏–∫–∞ —á–∏—Å–ª–æ–≤—ã—Ö, –º–æ–¥–∞ –∫–∞—Ç–µ–≥–æ—Ä–∏–∞–ª—å–Ω—ã—Ö.
+- –ü—Ä–æ–ø—É—Å–∫–∏ –∑–∞–ø–æ–ª–Ω–µ–Ω—ã –º–µ–¥–∏–∞–Ω–æ–π/–º–æ–¥–æ–π.
+- –í—ã–±—Ä–æ—Å—ã –æ–≥—Ä–∞–Ω–∏—á–µ–Ω—ã –º–µ—Ç–æ–¥–æ–º IQR (–∫—Ä–æ–º–µ price).
+- –ì–∏–ø–æ—Ç–µ–∑–∞ 1: –∫–æ—Ä—Ä–µ–ª—è—Ü–∏—è squareMeters –∏ price (Pearson).
+- –ì–∏–ø–æ—Ç–µ–∑–∞ 2: —Å—Ä–µ–¥–Ω—è—è price –æ—Ç–ª–∏—á–∞–µ—Ç—Å—è –¥–ª—è hasPool=1/0 (t-test).
+- –ü–æ—Å—Ç—Ä–æ–µ–Ω—ã –º–æ–¥–µ–ª–∏: LinearRegression, Ridge, KNN, Lasso.
+- –ú–µ—Ç—Ä–∏–∫–∏: MAE, MSE, RMSE, MAPE, R2.
+- –õ—É—á—à–∞—è –º–æ–¥–µ–ª—å –≤—ã–±—Ä–∞–Ω–∞ –ø–æ R2, —Å–æ—Ö—Ä–∞–Ω–µ–Ω–∞ –≤ best_model.joblib, –ø—Ä–æ–≤–µ—Ä–µ–Ω–∞ –∑–∞–≥—Ä—É–∑–∫–∞.
+
+2) –°–∞–º–æ—Å—Ç–æ—è—Ç–µ–ª—å–Ω–∞—è —á–∞—Å—Ç—å (F1 SQLite):
+- –î–∞–Ω–Ω—ã–µ –æ–±—ä–µ–¥–∏–Ω–µ–Ω—ã –∏–∑ results+races+drivers+constructors.
+- –¶–µ–ª–µ–≤–æ–π —Å—Ç–æ–ª–±–µ—Ü: points (—Ä–µ–≥—Ä–µ—Å—Å–∏—è).
+- EDA, –ø—Ä–æ–ø—É—Å–∫–∏, –≤—ã–±—Ä–æ—Å—ã.
+- –ì–∏–ø–æ—Ç–µ–∑–∞ 1: –∫–æ—Ä—Ä–µ–ª—è—Ü–∏—è grid –∏ points.
+- –ì–∏–ø–æ—Ç–µ–∑–∞ 2: —Å—Ä–µ–¥–Ω–∏–µ points British vs German.
+- –ú–æ–¥–µ–ª–∏: LinearRegression, Ridge, KNN.
+- –ú–µ—Ç—Ä–∏–∫–∏: MAE, MSE, RMSE, MAPE, R2.
+
+3) –û—Ç–≤–µ—Ç—ã –Ω–∞ –∫–æ–Ω—Ç—Ä–æ–ª—å–Ω—ã–µ –≤–æ–ø—Ä–æ—Å—ã:
+- –†–µ–≥—Ä–µ—Å—Å–∏—è: –ø—Ä–æ–≥–Ω–æ–∑ —á–∏—Å–ª–µ–Ω–Ω–æ–≥–æ –∑–Ω–∞—á–µ–Ω–∏—è.
+- –õ–∏–Ω–µ–π–Ω–∞—è —Ä–µ–≥—Ä–µ—Å—Å–∏—è: –∑–∞–≤–∏—Å–∏–º–æ—Å—Ç—å —Ü–µ–ª–µ–≤–æ–π –ø–µ—Ä–µ–º–µ–Ω–Ω–æ–π –æ—Ç –ø—Ä–∏–∑–Ω–∞–∫–æ–≤ —á–µ—Ä–µ–∑ –ª–∏–Ω–µ–π–Ω—É—é –∫–æ–º–±–∏–Ω–∞—Ü–∏—é.
+- LASSO –∏ ElasticNet: –º–æ–¥–µ–ª–∏ —Å —Ä–µ–≥—É–ª—è—Ä–∏–∑–∞—Ü–∏–µ–π (L1, L1+L2).
+- –ú–µ—Ç—Ä–∏–∫–∏: MAE, MSE, RMSE, MAPE, R2.
+- –ù–æ—Ä–º–∞–ª–∏–∑–∞—Ü–∏—è: –ø—Ä–∏–≤–µ–¥–µ–Ω–∏–µ –≤ –¥–∏–∞–ø–∞–∑–æ–Ω, —Å—Ç–∞–Ω–¥–∞—Ä—Ç–∏–∑–∞—Ü–∏—è: (x-mean)/std.
+"""
